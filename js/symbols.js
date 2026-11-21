@@ -25,8 +25,8 @@ export const CATEGORIES = [
   { id: 'functions', label: 'Functions' },
   { id: 'sets', label: 'Sets & logic' },
   { id: 'fonts', label: 'Fonts & color' },
-  { id: 'environments', label: 'Matrices & environments' },
-  { id: 'misc', label: 'Misc & spacing' },
+  { id: 'environments', label: 'Matrices' },
+  { id: 'misc', label: 'Misc' },
   { id: 'chemistry', label: 'Chemistry' },
 ];
 

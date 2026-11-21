@@ -7,6 +7,7 @@ import { TEMPLATES } from './symbols.js';
 import * as store from './store.js';
 
 const $ = (id) => document.getElementById(id);
+const ZOOMS = ['fit', 1, 2, 4];
 
 const state = {
   settings: store.loadSettings(),
@@ -15,8 +16,9 @@ const state = {
   empty: true,
   ready: false,
 };
+if (!ZOOMS.includes(state.settings.zoom)) state.settings.zoom = 'fit';
 
-// ---------- toast ----------
+// ---------- feedback ----------
 let toastTimer = 0;
 function toast(msg, kind = 'ok') {
   const el = $('toast');
@@ -24,7 +26,27 @@ function toast(msg, kind = 'ok') {
   el.dataset.kind = kind;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), kind === 'error' ? 5000 : 2200);
+  toastTimer = setTimeout(() => el.classList.remove('show'), kind === 'error' ? 5200 : 2400);
+}
+
+function announce(msg) {
+  const el = $('announce');
+  el.textContent = '';
+  requestAnimationFrame(() => { el.textContent = msg; });
+}
+
+/** Confirm a copy inside the button itself ("Copied"), then restore its label. */
+const copyTimers = new WeakMap();
+function confirmCopy(btn, spoken) {
+  const label = btn.dataset.copyLabel || btn.textContent;
+  btn.textContent = 'Copied';
+  btn.classList.add('copied');
+  announce(spoken);
+  clearTimeout(copyTimers.get(btn));
+  copyTimers.set(btn, setTimeout(() => {
+    btn.textContent = label;
+    btn.classList.remove('copied');
+  }, 1600));
 }
 
 // ---------- editor ----------
@@ -49,7 +71,7 @@ const editor = createEditor($('source'), {
 });
 if (shared) store.saveSource(initialTex);
 
-// ---------- settings form ----------
+// ---------- settings ----------
 const fields = ['fontPt', 'scale', 'padding', 'dpi', 'unit', 'bgMode', 'bgColor', 'color'];
 
 function syncForm() {
@@ -64,10 +86,11 @@ function syncForm() {
   $('bgColor').disabled = s.bgMode !== 'color';
   $('color').value = s.color;
   $('color-hex').value = s.color;
-  $('zoom').value = String(s.zoom);
-  if ($('zoom').value !== String(s.zoom)) $('zoom').value = 'fit';
   for (const b of document.querySelectorAll('[data-display]')) {
     b.setAttribute('aria-pressed', String(b.dataset.display === String(s.display)));
+  }
+  for (const b of document.querySelectorAll('[data-zoom]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.zoom === String(s.zoom)));
   }
 }
 
@@ -80,7 +103,7 @@ for (const id of fields) {
   const el = $(id);
   const handler = () => {
     if (el.type === 'number') {
-      // Ignore incomplete input ("", "1.") until it parses; fix it up on blur.
+      // Ignore incomplete input ("", "1.") until it parses; it is restored on blur.
       const v = el.validity;
       if (el.value === '' || v.badInput || v.rangeUnderflow || v.rangeOverflow) {
         el.classList.toggle('invalid', el.value !== '');
@@ -122,10 +145,13 @@ $('color-hex').addEventListener('change', (e) => {
   e.target.classList.remove('invalid');
 });
 
-$('zoom').addEventListener('change', (e) => {
-  commitSettings({ zoom: e.target.value === 'fit' ? 'fit' : Number(e.target.value) });
-  paint();
-});
+for (const b of document.querySelectorAll('[data-zoom]')) {
+  b.addEventListener('click', () => {
+    commitSettings({ zoom: b.dataset.zoom === 'fit' ? 'fit' : Number(b.dataset.zoom) });
+    syncForm();
+    paint();
+  });
+}
 
 for (const b of document.querySelectorAll('[data-display]')) {
   b.addEventListener('click', () => {
@@ -160,22 +186,32 @@ function setError(msg) {
   state.error = msg;
   const el = $('error');
   el.hidden = !msg;
-  el.textContent = msg ? `Can’t typeset: ${msg}` : '';
+  el.textContent = msg ? `Can’t typeset this yet: ${msg}` : '';
   $('stage').classList.toggle('stale', !!msg && !!state.last);
   updateActions();
 }
+
+// Errors are shown only after a pause, so half-typed commands (\al on the way to
+// \alpha) don't flash a warning on every keystroke.
+let errorTimer = 0;
+const ERROR_DELAY = 700;
 
 function update() {
   if (!state.ready) return;
   const tex = editor.getValue();
   const r = renderTex(tex, state.settings.display);
+  clearTimeout(errorTimer);
   if (r.empty) {
     state.empty = true;
     state.last = null;
     setError(null);
   } else if (r.error) {
     state.empty = false;
-    setError(r.error);
+    const wasError = !!state.error;
+    state.error = r.error; // exports stop at once; the message waits for a pause
+    updateActions(false);
+    if (wasError || !state.last) setError(r.error);
+    else errorTimer = setTimeout(() => { setError(r.error); paint(); }, ERROR_DELAY);
   } else {
     state.empty = false;
     state.last = { svg: r.svg, tex, display: state.settings.display };
@@ -194,22 +230,30 @@ function luminance(hex) {
   return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
 }
 
+const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+
+function showMessage(text, { loading = false, templates = false } = {}) {
+  $('sheet').hidden = true;
+  $('stage-msg').hidden = false;
+  $('stage-text').textContent = text;
+  $('stage-text').classList.toggle('loading', loading);
+  $('empty-templates').hidden = !templates;
+  $('zoom-readout').textContent = '';
+  $('ro-size').textContent = '–';
+  $('ro-png').textContent = '–';
+}
+
 function paint() {
   const stage = $('stage');
-  const sheet = $('sheet');
-  const msg = $('stage-msg');
   const s = state.settings;
-  // Light ink on a transparent background needs a dark backdrop to be visible.
+  // Light ink on a transparent background needs a dark backdrop to stay visible.
   stage.dataset.backdrop = s.bgMode === 'transparent' && luminance(s.color) > 0.45 ? 'dark' : 'light';
 
   if (!state.last) {
-    sheet.hidden = true;
-    msg.hidden = false;
-    msg.textContent = !state.ready ? 'Loading the typesetter…'
-      : state.empty ? 'Type LaTeX on the left, or open Templates to start from an example.'
-        : 'Fix the error above to see a preview.';
-    $('size-readout').textContent = '';
-    updateActions();
+    if (!state.ready) showMessage('Loading the typesetter…', { loading: true });
+    else if (state.empty) showMessage('Type LaTeX in the editor below, or start from a template.', { templates: true });
+    else showMessage('Fix the problem described below to see the preview.');
+    updateActions(false);
     return;
   }
 
@@ -221,13 +265,13 @@ function paint() {
     return;
   }
   const node = svgNode(out.svg);
-  if (!node) { setError('The SVG could not be displayed'); return; }
+  if (!node) { setError('the SVG could not be displayed'); return; }
 
   const wPx = (out.widthPt * 4) / 3;
   const hPx = (out.heightPt * 4) / 3;
   let z = s.zoom;
   if (z === 'fit') {
-    const pad = 48;
+    const pad = 110; // stage padding plus room for the dimension lines
     const availW = Math.max(40, stage.clientWidth - pad);
     const availH = Math.max(40, stage.clientHeight - pad);
     z = Math.min(availW / wPx, availH / hPx, 16);
@@ -237,38 +281,40 @@ function paint() {
   node.removeAttribute('role');
   node.setAttribute('aria-hidden', 'true');
   $('sheet-svg').replaceChildren(node);
-  sheet.hidden = false;
-  msg.hidden = true;
-  sheet.setAttribute('role', 'img');
-  sheet.setAttribute('aria-label', `Rendered equation: ${state.last.tex}`);
+  $('sheet').hidden = false;
+  $('stage-msg').hidden = true;
+  $('sheet').setAttribute('role', 'img');
+  $('sheet').setAttribute('aria-label', `Rendered equation: ${state.last.tex}`);
 
   const px = pixelSize(out.widthPt, out.heightPt, s.dpi);
-  const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString();
-  const zoomText = s.zoom === 'fit' ? ` · shown at ${Math.round(z * 100)}%` : '';
-  $('size-readout').textContent =
-    `${fmt(out.widthPt)} × ${fmt(out.heightPt)} pt · PNG ${px.width.toLocaleString()} × ${px.height.toLocaleString()} px at ${s.dpi} dpi${zoomText}`;
-  updateActions();
+  $('dim-x').textContent = `${fmt(out.widthPt)} pt`;
+  $('dim-y').textContent = `${fmt(out.heightPt)} pt`;
+  $('ro-size').textContent = `${fmt(out.widthPt)} × ${fmt(out.heightPt)} pt`;
+  $('ro-png').textContent = `${px.width.toLocaleString()} × ${px.height.toLocaleString()} px`;
+  $('zoom-readout').textContent = `Shown at ${Math.round(z * 100)}%`;
+  updateActions(false);
 }
 
-function updateActions() {
+function updateActions(showNote = true) {
   const ok = !!state.last && !state.error;
   for (const id of ['dl-svg', 'dl-png', 'copy-svg', 'copy-png', 'copy-mathml']) $(id).disabled = !ok;
-  $('export-note').textContent = state.error && state.last
-    ? 'Export is paused until the LaTeX typesets without errors.'
-    : '';
+  if (showNote || ok) {
+    $('export-note').textContent = state.last && state.error
+      ? 'Export is paused until the LaTeX typesets without errors.' : '';
+  }
   fileInput.placeholder = slugFromTex(state.last ? state.last.tex : '');
 }
 
-new ResizeObserver(() => { if (state.settings.zoom === 'fit') paint(); }).observe($('stage'));
+new ResizeObserver(() => { if (state.settings.zoom === 'fit' && state.last) paint(); }).observe($('stage'));
 
 // ---------- export ----------
 function currentSvg() {
-  if (!state.last || state.error) throw new Error('Nothing to export yet');
+  if (!state.last || state.error) throw new Error('There is nothing to export yet.');
   return buildExportSvg(state.last.svg, exportOptions({ title: state.last.tex }));
 }
 
 async function currentPng() {
-  if (!state.last || state.error) throw new Error('Nothing to export yet');
+  if (!state.last || state.error) throw new Error('There is nothing to export yet.');
   const s = state.settings;
   const geo = buildExportSvg(state.last.svg, exportOptions());
   const want = pixelSize(geo.widthPt, geo.heightPt, s.dpi);
@@ -312,28 +358,50 @@ async function copyText(text) {
 }
 
 function guard(fn) {
-  return async () => {
+  return async (...args) => {
     try {
-      await fn();
+      await fn(...args);
     } catch (e) {
       toast(e.message || String(e), 'error');
     }
   };
 }
 
+/** Show a busy label on a button while an async task runs. */
+async function busy(btn, label, task) {
+  const original = btn.dataset.copyLabel || btn.textContent;
+  btn.setAttribute('aria-busy', 'true');
+  btn.textContent = label;
+  try {
+    return await task();
+  } finally {
+    btn.removeAttribute('aria-busy');
+    if (!btn.classList.contains('copied')) btn.textContent = original;
+  }
+}
+
 const downloadSvg = guard(async () => {
   const { svg } = currentSvg();
-  download(new Blob([svg], { type: 'image/svg+xml' }), fileBase() + '.svg');
-  toast('Downloaded SVG');
+  const name = fileBase() + '.svg';
+  download(new Blob([svg], { type: 'image/svg+xml' }), name);
+  toast(`Downloaded ${name}`);
 });
 
+let pngRunning = false;
 const downloadPng = guard(async () => {
-  const { blob, size, want } = await currentPng();
-  download(blob, fileBase() + '.png');
-  if (size.clamped) {
-    toast(`Downloaded PNG at ${size.width} × ${size.height} px. ${want.width} × ${want.height} px is larger than browsers can draw.`, 'error');
-  } else {
-    toast('Downloaded PNG');
+  if (pngRunning) return;
+  pngRunning = true;
+  try {
+    const { blob, size, want } = await busy($('dl-png'), 'Drawing…', currentPng);
+    const name = fileBase() + '.png';
+    download(blob, name);
+    if (size.clamped) {
+      toast(`Downloaded at ${size.width} × ${size.height} px. ${want.width} × ${want.height} px is larger than browsers can draw.`, 'error');
+    } else {
+      toast(`Downloaded ${name}`);
+    }
+  } finally {
+    pngRunning = false;
   }
 });
 
@@ -342,35 +410,39 @@ $('dl-png').addEventListener('click', downloadPng);
 
 $('copy-svg').addEventListener('click', guard(async () => {
   const { svg } = currentSvg();
-  if (await copyText(svg)) toast('Copied SVG code');
+  if (await copyText(svg)) confirmCopy($('copy-svg'), 'SVG code copied');
   else throw new Error('Copying is blocked in this browser. Use Download SVG instead.');
 }));
 
 $('copy-png').addEventListener('click', guard(async () => {
+  const btn = $('copy-png');
   if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) {
     throw new Error('This browser can’t copy images. Use Download PNG instead.');
   }
   // Pass a promise so Safari keeps the user gesture while the PNG is drawn.
   const pending = currentPng();
-  try {
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': pending.then((r) => r.blob) })]);
-  } catch (e) {
-    await pending.catch(() => {});
-    throw new Error('Copying images is blocked here. Use Download PNG instead.');
-  }
+  await busy(btn, 'Drawing…', async () => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pending.then((r) => r.blob) })]);
+    } catch {
+      await pending.catch(() => {});
+      throw new Error('Copying images is blocked here. Use Download PNG instead.');
+    }
+  });
   const { size } = await pending;
-  toast(size.clamped ? `Copied PNG, reduced to ${size.width} × ${size.height} px` : 'Copied PNG image');
+  confirmCopy(btn, 'PNG image copied');
+  if (size.clamped) toast(`Copied, reduced to ${size.width} × ${size.height} px`, 'error');
 }));
 
 $('copy-mathml').addEventListener('click', guard(async () => {
-  if (!state.last) throw new Error('Nothing to copy yet');
+  if (!state.last) throw new Error('There is nothing to copy yet.');
   const mml = texToMathML(state.last.tex, state.last.display);
-  if (await copyText(mml)) toast('Copied MathML. Paste it into Word as an equation.');
+  if (await copyText(mml)) confirmCopy($('copy-mathml'), 'MathML copied. Paste it into Word as an equation.');
   else throw new Error('Copying is blocked in this browser.');
 }));
 
 $('copy-tex-btn').addEventListener('click', guard(async () => {
-  if (await copyText(editor.getValue())) toast('Copied LaTeX');
+  if (await copyText(editor.getValue())) confirmCopy($('copy-tex-btn'), 'LaTeX copied');
   else throw new Error('Copying is blocked in this browser.');
 }));
 
@@ -381,9 +453,9 @@ $('clear-btn').addEventListener('click', () => {
 
 $('share-btn').addEventListener('click', guard(async () => {
   const tex = editor.getValue();
-  if (!tex.trim()) throw new Error('Type an equation first');
+  if (!tex.trim()) throw new Error('Type an equation first, then copy its link.');
   const url = location.origin + location.pathname + store.buildShareHash(tex, state.settings.display);
-  if (await copyText(url)) toast('Copied a link to this equation');
+  if (await copyText(url)) toast('Link copied. Anyone who opens it sees this equation.');
   else throw new Error('Copying is blocked in this browser.');
 }));
 
@@ -404,80 +476,124 @@ window.addEventListener('keydown', (e) => {
   else downloadSvg();
 }, true);
 
-// ---------- dialogs ----------
+// ---------- help dialog ----------
 for (const b of document.querySelectorAll('[data-open]')) {
-  b.addEventListener('click', () => {
-    const d = $(b.dataset.open);
-    if (d.id === 'saved-dialog') renderSaved();
-    d.showModal();
-  });
+  b.addEventListener('click', () => $(b.dataset.open).showModal());
 }
 for (const d of document.querySelectorAll('dialog')) {
   d.addEventListener('click', (e) => { if (e.target === d) d.close(); }); // backdrop click
   for (const c of d.querySelectorAll('[data-close]')) c.addEventListener('click', () => d.close());
 }
 
-function card(tex, title, onOpen, extra) {
+// ---------- library: symbols / templates / saved ----------
+const libTabs = [...document.querySelectorAll('.lib-tab')];
+
+function setLib(name, { focus = false } = {}) {
+  for (const t of libTabs) {
+    const on = t.dataset.lib === name;
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+    $(t.getAttribute('aria-controls')).hidden = !on;
+    if (on && focus) t.focus();
+  }
+  $('search-wrap').hidden = name !== 'symbols';
+  if (name === 'saved') renderSaved();
+}
+for (const t of libTabs) t.addEventListener('click', () => setLib(t.dataset.lib));
+document.querySelector('.lib-switch').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const i = libTabs.indexOf(document.activeElement);
+  if (i < 0) return;
+  const next = libTabs[(i + (e.key === 'ArrowRight' ? 1 : libTabs.length - 1)) % libTabs.length];
+  setLib(next.dataset.lib, { focus: true });
+  e.preventDefault();
+});
+
+$('empty-templates').addEventListener('click', () => {
+  setLib('templates', { focus: true });
+  $('library').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+});
+
+function tile(tex, title, onOpen, foot) {
   const li = document.createElement('li');
+  li.className = 'tile';
   const open = document.createElement('button');
   open.type = 'button';
-  open.className = 'card';
-  const g = document.createElement('span');
-  g.className = 'card-glyph';
-  const node = state.ready && svgNode(glyphSvg(tex.replace(/\s+/g, ' ')) || '<svg xmlns="http://www.w3.org/2000/svg"/>');
-  if (node && node.getAttribute('viewBox')) g.appendChild(node);
-  else { g.textContent = tex; g.classList.add('code'); }
-  const t = document.createElement('span');
-  t.className = 'card-title';
-  t.textContent = title;
-  open.append(g, t);
+  open.className = 'tile-open';
+  const eq = document.createElement('span');
+  eq.className = 'tile-eq';
+  const svg = state.ready ? glyphSvg(tex.replace(/\s+/g, ' ')) : '';
+  const node = svg && svgNode(svg);
+  if (node) eq.appendChild(node);
+  else { eq.textContent = tex; eq.classList.add('code'); }
+  const name = document.createElement('span');
+  name.className = 'tile-name';
+  name.textContent = title;
+  open.append(eq, name);
+  open.setAttribute('aria-label', `Open ${title}`);
   open.addEventListener('click', onOpen);
   li.appendChild(open);
-  if (extra) li.appendChild(extra);
+  if (foot) li.appendChild(foot);
   return li;
 }
 
 function renderTemplates() {
-  $('templates-list').replaceChildren(...TEMPLATES.map((tpl) => card(tpl.tex, tpl.name, () => {
+  $('templates-list').replaceChildren(...TEMPLATES.map((tpl) => tile(tpl.tex, tpl.name, () => {
     editor.setValue(tpl.tex);
-    $('templates-dialog').close();
     editor.focus();
+    announce(`${tpl.name} opened in the editor`);
   })));
+}
+
+function updateSavedCount() {
+  const n = store.loadSaved().length;
+  $('saved-count').textContent = n ? String(n) : '';
 }
 
 function renderSaved() {
   const list = store.loadSaved();
   $('saved-empty').hidden = list.length > 0;
+  $('saved-note').hidden = list.length === 0;
   $('saved-list').replaceChildren(...list.map((item) => {
+    const foot = document.createElement('div');
+    foot.className = 'tile-foot';
     const del = document.createElement('button');
     del.type = 'button';
-    del.className = 'btn ghost small danger';
+    del.className = 'btn quiet danger';
     del.textContent = 'Delete';
-    del.setAttribute('aria-label', 'Delete saved equation');
+    const when = new Date(item.savedAt || Date.now()).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    del.setAttribute('aria-label', `Delete equation saved ${when}`);
     del.addEventListener('click', () => {
       store.storeSaved(store.loadSaved().filter((x) => x.id !== item.id));
       renderSaved();
-      toast('Deleted');
+      updateSavedCount();
+      announce('Deleted');
+      $('lib-tab-saved').focus();
     });
-    const when = new Date(item.savedAt || Date.now()).toLocaleString();
-    return card(item.tex, `Saved ${when}`, () => {
+    foot.appendChild(del);
+    return tile(item.tex, `Saved ${when}`, () => {
       if (typeof item.display === 'boolean') { commitSettings({ display: item.display }); syncForm(); }
       editor.setValue(item.tex);
-      $('saved-dialog').close();
       editor.focus();
-    }, del);
+      announce('Saved equation opened in the editor');
+    }, foot);
   }));
 }
 
 $('save-btn').addEventListener('click', () => {
   const tex = editor.getValue();
-  if (!tex.trim()) { toast('Type an equation first', 'error'); return; }
+  if (!tex.trim()) { toast('Type an equation first, then save it.', 'error'); return; }
   const list = store.loadSaved();
-  if (list.some((x) => x.tex === tex)) { toast('Already saved'); return; }
+  if (list.some((x) => x.tex === tex)) { toast('This equation is already in Saved.'); return; }
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   list.unshift({ id, tex, display: state.settings.display, savedAt: Date.now() });
-  if (store.storeSaved(list.slice(0, 200))) toast('Saved. Find it under Saved.');
-  else toast('Couldn’t save: browser storage is full or blocked', 'error');
+  if (store.storeSaved(list.slice(0, 200))) {
+    toast('Saved. It’s listed under Saved, below the editor.');
+    updateSavedCount();
+    if (!$('lib-saved').hidden) renderSaved();
+  } else {
+    toast('Couldn’t save: this browser’s storage is full or blocked.', 'error');
+  }
 });
 
 // ---------- theme ----------
@@ -502,10 +618,12 @@ labelTheme();
 
 // ---------- boot ----------
 syncForm();
+updateSavedCount();
 updateActions();
+paint();
 mathjaxReady().then(() => {
   state.ready = true;
-  createPalette($('palette'), {
+  createPalette($('library'), {
     initialCat: state.settings.paletteCat,
     onCatChange: (id) => commitSettings({ paletteCat: id }),
     onPick: (entry) => editor.insertSnippet(entry.snippet),
@@ -513,6 +631,6 @@ mathjaxReady().then(() => {
   renderTemplates();
   update();
 }).catch((e) => {
-  $('stage-msg').textContent = `The typesetter failed to load (${e.message}). Reload the page to try again.`;
-  toast('The typesetter failed to load', 'error');
+  showMessage(`The typesetter failed to load (${e.message}). Reload the page to try again.`);
+  toast('The typesetter failed to load.', 'error');
 });

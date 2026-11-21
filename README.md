@@ -25,7 +25,11 @@ no build step, so it publishes to GitHub Pages as is.
 - **Export actions:** download SVG or PNG, copy the SVG code, copy the PNG image, copy LaTeX, and copy
   MathML (it pastes into Microsoft Word as an editable equation).
 - **Templates** (quadratic formula, Maxwell's equations, matrices, piecewise functions, chemistry and
-  more), **saved equations**, **share links**, autosave, and light and dark themes.
+  more) and **saved equations**, in the Insert tray under the editor. Also **share links**, autosave,
+  and light and dark themes.
+- **Legible by design.** The UI uses Atkinson Hyperlegible Next and Mono, both made for low-vision
+  readers. Contrast meets WCAG AA in both themes, every control has a visible focus state, and
+  `prefers-reduced-motion` is respected.
 
 ### How sizes work
 
@@ -86,5 +90,6 @@ Everything runs locally. Your equations, settings and saved items stay in this b
 
 ## Third-party code
 
-MathJax 3.2.2 (Apache-2.0) and CodeMirror 5.65.18 (MIT) are vendored in `vendor/`. See
-`vendor/README.md`.
+MathJax 3.2.2 (Apache-2.0), CodeMirror 5.65.18 (MIT) and the Atkinson Hyperlegible Next and Mono
+fonts (OFL-1.1) are vendored in `vendor/`. See `vendor/README.md`. The visual system is described
+in `DESIGN.md` and the product brief in `PRODUCT.md`.

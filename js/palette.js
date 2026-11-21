@@ -13,7 +13,7 @@ export function createPalette(root, { onPick, initialCat, onCatChange }) {
   for (const c of CATEGORIES) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'tab';
+    b.className = 'cat';
     b.setAttribute('role', 'tab');
     b.dataset.cat = c.id;
     b.textContent = c.label;
@@ -27,7 +27,7 @@ export function createPalette(root, { onPick, initialCat, onCatChange }) {
   // Arrow-key navigation between tabs.
   tabs.addEventListener('keydown', (e) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    const all = [...tabs.querySelectorAll('.tab')];
+    const all = [...tabs.querySelectorAll('.cat')];
     const i = all.indexOf(document.activeElement);
     if (i < 0) return;
     const next = all[(i + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length];
@@ -68,7 +68,7 @@ export function createPalette(root, { onPick, initialCat, onCatChange }) {
 
   function setCat(id) {
     cat = id;
-    for (const b of tabs.querySelectorAll('.tab')) {
+    for (const b of tabs.querySelectorAll('.cat')) {
       const on = b.dataset.cat === id;
       b.setAttribute('aria-selected', String(on));
       b.tabIndex = on ? 0 : -1;
@@ -84,7 +84,7 @@ export function createPalette(root, { onPick, initialCat, onCatChange }) {
     t = setTimeout(() => {
       const q = search.value.trim();
       if (!q) { setCat(cat); return; }
-      for (const b of tabs.querySelectorAll('.tab')) b.setAttribute('aria-selected', 'false');
+      for (const b of tabs.querySelectorAll('.cat')) b.setAttribute('aria-selected', 'false');
       fill(rankSymbols(q, SYMBOLS, 80), `No symbols match “${q}”. Try a name like “arrow” or “integral”.`);
       grid.setAttribute('aria-label', `Search results for ${q}`);
     }, 80);

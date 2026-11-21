@@ -285,10 +285,12 @@ export function createEditor(textarea, { onChange } = {}) {
     tabSize: 2,
     indentWithTabs: false,
     viewportMargin: Infinity,
+    cursorBlinkRate: 0, // the caret pulses via CSS instead of blinking out (css/styles.css)
     spellcheck: false,
     autocorrect: false,
     autocapitalize: false,
-    inputStyle: 'contenteditable',
+    // Default input style: a hidden textarea on desktop, so CodeMirror draws the caret we
+    // style in CSS. (Touch devices get contenteditable automatically, for better IME support.)
     screenReaderLabel: 'LaTeX source',
     extraKeys: {
       'Ctrl-Space': () => showHints(true),

@@ -3,10 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>eqset — LaTeX equation editor</title>
-  <meta name="description" content="Type LaTeX, see it typeset live, and export the equation as a vector SVG or a high-resolution PNG. Symbol suggestions, a symbol palette, font size and scale controls. Runs entirely in your browser.">
+  <title>eqset · LaTeX equation editor</title>
+  <meta name="description" content="Type LaTeX, see it typeset live, and export the equation as a vector SVG or a high-resolution PNG at an exact size. Symbol suggestions, templates and a symbol palette. Runs entirely in your browser.">
   <meta name="color-scheme" content="light dark">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232B48C9'/%3E%3Cpath d='M9 8h14M9 16h10M9 24h14' stroke='%23fff' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#151515" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fff'/%3E%3Cpath d='M3 10V3h7M22 3h7v7M29 22v7h-7M10 29H3v-7' fill='none' stroke='%23222' stroke-width='2.4'/%3E%3Cpath d='M10 13h12M10 19h12' stroke='%232f7a3d' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="preload" href="vendor/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="vendor/fonts/atkinson-hyperlegible-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="vendor/codemirror/codemirror.css">
   <link rel="stylesheet" href="vendor/codemirror/show-hint.css">
   <link rel="stylesheet" href="css/styles.css">
@@ -16,208 +20,248 @@
   </script>
 </head>
 <body>
-  <a class="skip" href="#source-pane">Skip to editor</a>
-  <header class="bar">
-    <div class="brand">
-      <svg class="brand-mark" width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-        <path d="M2 7V2h5M19 2h5v5M24 19v5h-5M7 24H2v-5" fill="none" stroke="currentColor" stroke-width="1.6"/>
-        <path d="M8 9h10M8 13h7M8 17h10" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <span class="brand-name">eqset</span>
-      <span class="tagline">LaTeX equations to SVG and PNG</span>
-    </div>
-    <nav class="bar-actions" aria-label="Tools">
-      <button type="button" class="btn ghost" data-open="templates-dialog">Templates</button>
-      <button type="button" class="btn ghost" data-open="saved-dialog">Saved</button>
-      <button type="button" class="btn ghost" id="share-btn">Copy link</button>
-      <button type="button" class="btn ghost icon" data-open="help-dialog" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
-      <button type="button" class="btn ghost icon" id="theme-btn" aria-label="Switch theme" title="Switch theme">
-        <svg class="i-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-        <svg class="i-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>
-      </button>
-    </nav>
-  </header>
+  <a class="skip" href="#source-h">Skip to the LaTeX editor</a>
+  <div class="shell">
+    <header class="top">
+      <div class="mark">
+        <svg class="mark-glyph" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M1.5 7V1.5H7M17 1.5h5.5V7M22.5 17v5.5H17M7 22.5H1.5V17" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M7 9.5h10M7 14.5h10" stroke="var(--accent)" stroke-width="2.2"/>
+        </svg>
+        <span class="wordmark">eqset</span>
+      </div>
+      <p class="tagline">LaTeX to SVG and PNG, typeset in your browser</p>
+      <nav class="top-actions" aria-label="Page">
+        <button type="button" class="btn quiet" id="share-btn">Copy link</button>
+        <button type="button" class="btn quiet" data-open="help-dialog">Shortcuts</button>
+        <button type="button" class="btn quiet icon" id="theme-btn" aria-label="Switch theme" title="Switch theme">
+          <svg class="i-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="8" height="8"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1"/></svg>
+          <svg class="i-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>
+        </button>
+      </nav>
+    </header>
 
-  <main class="workspace">
-    <section class="pane source-pane" id="source-pane" aria-labelledby="source-h">
-      <div class="pane-head">
-        <h2 id="source-h">LaTeX</h2>
-        <div class="seg" role="group" aria-label="Math style">
-          <button type="button" class="seg-btn" data-display="true" aria-pressed="true" title="Display style: large operators, limits above and below">Display</button>
-          <button type="button" class="seg-btn" data-display="false" aria-pressed="false" title="Inline style: compact, as inside a sentence">Inline</button>
+    <main class="desk">
+      <!-- Preview: the rendered equation is the hero -->
+      <section class="proof" aria-labelledby="proof-h">
+        <div class="bar">
+          <h2 id="proof-h">Preview</h2>
+          <span class="bar-note" id="zoom-readout" aria-live="polite"></span>
+          <span class="spacer"></span>
+          <div class="seg" role="group" aria-label="Preview zoom">
+            <button type="button" class="seg-btn" data-zoom="fit" aria-pressed="true">Fit</button>
+            <button type="button" class="seg-btn" data-zoom="1" aria-pressed="false" title="Actual size on screen">100%</button>
+            <button type="button" class="seg-btn" data-zoom="2" aria-pressed="false">200%</button>
+            <button type="button" class="seg-btn" data-zoom="4" aria-pressed="false">400%</button>
+          </div>
         </div>
-        <span class="spacer"></span>
-        <button type="button" class="btn small" id="save-btn">Save</button>
-        <button type="button" class="btn small" id="copy-tex-btn">Copy LaTeX</button>
-        <button type="button" class="btn small" id="clear-btn">Clear</button>
-      </div>
-      <div class="editor-wrap">
-        <textarea id="source" spellcheck="false" aria-label="LaTeX source"></textarea>
-      </div>
-      <p class="pane-foot">Type <kbd>\</kbd> and a letter for suggestions, or press <kbd>Ctrl</kbd>+<kbd>Space</kbd>. <kbd>Tab</kbd> jumps to the next empty field.</p>
-    </section>
-
-    <section class="pane preview-pane" aria-labelledby="preview-h">
-      <div class="pane-head">
-        <h2 id="preview-h">Preview</h2>
-        <span class="spacer"></span>
-        <label class="inline-field">
-          <span class="vh">Zoom</span>
-          <select id="zoom" aria-label="Preview zoom">
-            <option value="fit">Fit</option>
-            <option value="0.5">50%</option>
-            <option value="1">100% (actual size)</option>
-            <option value="2">200%</option>
-            <option value="4">400%</option>
-            <option value="8">800%</option>
-          </select>
-        </label>
-      </div>
-      <div class="stage" id="stage" data-backdrop="light">
-        <div class="sheet" id="sheet" hidden>
-          <i class="crop tl"></i><i class="crop tr"></i><i class="crop bl"></i><i class="crop br"></i>
-          <div class="sheet-svg" id="sheet-svg"></div>
+        <div class="stage" id="stage" data-backdrop="light">
+          <div class="sheet" id="sheet" hidden>
+            <span class="dim dim-x" aria-hidden="true"><span class="dim-label" id="dim-x"></span></span>
+            <span class="dim dim-y" aria-hidden="true"><span class="dim-label" id="dim-y"></span></span>
+            <i class="crop tl"></i><i class="crop tr"></i><i class="crop bl"></i><i class="crop br"></i>
+            <div class="sheet-svg" id="sheet-svg"></div>
+          </div>
+          <div class="stage-msg" id="stage-msg">
+            <p id="stage-text" class="loading">Loading the typesetter…</p>
+            <button type="button" class="btn" id="empty-templates" hidden>Browse templates</button>
+          </div>
         </div>
-        <p class="stage-msg" id="stage-msg">Loading the typesetter…</p>
-      </div>
-      <div class="status-row">
         <p class="error" id="error" role="status" aria-live="polite" hidden></p>
-        <p class="size" id="size-readout" aria-live="polite"></p>
-      </div>
-    </section>
+      </section>
 
-    <section class="pane export-pane" aria-labelledby="export-h">
-      <div class="pane-head"><h2 id="export-h">Export</h2></div>
-      <form class="settings" id="settings" autocomplete="off" onsubmit="return false">
-        <label class="field">
-          <span>Font size</span>
-          <span class="with-unit">
-            <input type="number" id="fontPt" min="1" max="1000" step="0.5" inputmode="decimal" list="pt-presets" required>
-            <span class="unit">pt</span>
-          </span>
-        </label>
-        <datalist id="pt-presets">
-          <option value="8"></option><option value="9"></option><option value="10"></option><option value="10.5"></option>
-          <option value="11"></option><option value="12"></option><option value="14"></option><option value="16"></option>
-          <option value="18"></option><option value="20"></option><option value="24"></option><option value="28"></option>
-          <option value="32"></option><option value="36"></option><option value="48"></option><option value="60"></option><option value="72"></option>
-        </datalist>
-        <label class="field">
-          <span>Scale</span>
-          <span class="with-unit">
-            <input type="number" id="scale" min="0.1" max="50" step="0.25" inputmode="decimal" required>
-            <span class="unit">×</span>
-          </span>
-        </label>
-        <label class="field">
-          <span>Color</span>
-          <span class="color-field">
-            <input type="color" id="color" aria-label="Equation color">
-            <input type="text" id="color-hex" maxlength="7" spellcheck="false" aria-label="Equation color hex value">
-          </span>
-        </label>
-        <div class="field">
-          <span id="bg-label">Background</span>
-          <span class="color-field" role="group" aria-labelledby="bg-label">
-            <select id="bgMode" aria-label="Background type">
-              <option value="transparent">Transparent</option>
-              <option value="color">Color</option>
-            </select>
-            <input type="color" id="bgColor" aria-label="Background color">
-          </span>
+      <!-- LaTeX source -->
+      <section class="source" aria-labelledby="source-h">
+        <div class="bar">
+          <h2 id="source-h" tabindex="-1">LaTeX</h2>
+          <span class="spacer"></span>
+          <button type="button" class="btn quiet" id="save-btn">Save</button>
+          <button type="button" class="btn quiet" id="copy-tex-btn" data-copy-label="Copy LaTeX">Copy LaTeX</button>
+          <button type="button" class="btn quiet" id="clear-btn">Clear</button>
         </div>
-        <label class="field">
-          <span>Padding</span>
-          <span class="with-unit">
-            <input type="number" id="padding" min="0" max="500" step="1" inputmode="numeric" required>
-            <span class="unit">px</span>
-          </span>
-        </label>
-        <label class="field">
-          <span>PNG resolution</span>
-          <span class="with-unit">
-            <input type="number" id="dpi" min="36" max="2400" step="1" inputmode="numeric" list="dpi-presets" required>
-            <span class="unit">dpi</span>
-          </span>
-        </label>
-        <datalist id="dpi-presets">
-          <option value="72"></option><option value="96"></option><option value="150"></option>
-          <option value="300"></option><option value="600"></option><option value="1200"></option>
-        </datalist>
-        <label class="field">
-          <span>SVG size unit</span>
-          <select id="unit">
-            <option value="pt">Points (pt)</option>
-            <option value="px">Pixels (px)</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>File name</span>
-          <input type="text" id="filename" spellcheck="false" maxlength="120">
-        </label>
-      </form>
-      <div class="export-actions">
-        <button type="button" class="btn primary" id="dl-svg">Download SVG</button>
-        <button type="button" class="btn primary" id="dl-png">Download PNG</button>
-        <button type="button" class="btn" id="copy-svg">Copy SVG code</button>
-        <button type="button" class="btn" id="copy-png">Copy PNG image</button>
-        <button type="button" class="btn" id="copy-mathml" title="Paste into Microsoft Word as an editable equation">Copy MathML</button>
-      </div>
-      <p class="pane-foot" id="export-note"></p>
-    </section>
+        <div class="editor-wrap">
+          <textarea id="source" spellcheck="false" aria-label="LaTeX source"></textarea>
+        </div>
+        <p class="foot">Type <kbd>\</kbd> and a letter for suggestions. <kbd>Tab</kbd> moves to the next empty slot.</p>
+      </section>
 
-    <section class="pane palette-pane" aria-labelledby="palette-h" id="palette">
-      <div class="pane-head">
-        <h2 id="palette-h">Symbols</h2>
-        <span class="spacer"></span>
-        <input type="search" class="search" data-palette-search placeholder="Search symbols, e.g. arrow" aria-label="Search symbols">
-      </div>
-      <div class="tabs" role="tablist" aria-label="Symbol categories" data-palette-tabs></div>
-      <div class="grid" role="group" data-palette-grid></div>
-      <p class="grid-status" data-palette-status hidden></p>
-    </section>
-  </main>
+      <!-- Insert: symbols, templates, saved -->
+      <section class="library" id="library" aria-label="Insert">
+        <div class="bar">
+          <div class="lib-switch" role="tablist" aria-label="Insert from">
+            <button type="button" role="tab" class="lib-tab" id="lib-tab-symbols" aria-controls="lib-symbols" aria-selected="true" data-lib="symbols">Symbols</button>
+            <button type="button" role="tab" class="lib-tab" id="lib-tab-templates" aria-controls="lib-templates" aria-selected="false" data-lib="templates" tabindex="-1">Templates</button>
+            <button type="button" role="tab" class="lib-tab" id="lib-tab-saved" aria-controls="lib-saved" aria-selected="false" data-lib="saved" tabindex="-1">Saved <span class="count" id="saved-count"></span></button>
+          </div>
+          <span class="spacer"></span>
+          <label class="search-wrap" id="search-wrap">
+            <span class="vh">Search symbols</span>
+            <input type="search" class="input search" data-palette-search placeholder="Search, e.g. arrow or integral" autocomplete="off" spellcheck="false">
+          </label>
+        </div>
 
-  <dialog id="templates-dialog" class="dialog" aria-labelledby="templates-h">
-    <div class="dialog-head">
-      <h2 id="templates-h">Templates</h2>
-      <button type="button" class="btn ghost icon" data-close aria-label="Close">✕</button>
-    </div>
-    <p class="dialog-note">Choosing a template replaces the editor contents. Press <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd> in the editor to undo.</p>
-    <ul class="card-list" id="templates-list"></ul>
-  </dialog>
+        <div class="lib-panel" id="lib-symbols" role="tabpanel" aria-labelledby="lib-tab-symbols">
+          <div class="cats" role="tablist" aria-label="Symbol categories" data-palette-tabs></div>
+          <div class="case-scroll">
+            <div class="case" role="group" data-palette-grid></div>
+            <p class="lib-empty" data-palette-status hidden></p>
+          </div>
+        </div>
 
-  <dialog id="saved-dialog" class="dialog" aria-labelledby="saved-h">
-    <div class="dialog-head">
-      <h2 id="saved-h">Saved equations</h2>
-      <button type="button" class="btn ghost icon" data-close aria-label="Close">✕</button>
-    </div>
-    <p class="dialog-note">Saved in this browser only. Opening one replaces the editor contents.</p>
-    <ul class="card-list" id="saved-list"></ul>
-    <p class="empty" id="saved-empty">Nothing saved yet. Use <strong>Save</strong> above the editor to keep the current equation here.</p>
-  </dialog>
+        <div class="lib-panel" id="lib-templates" role="tabpanel" aria-labelledby="lib-tab-templates" hidden>
+          <div class="case-scroll">
+            <p class="lib-note">Opening a template replaces the editor contents. Undo with <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>.</p>
+            <ul class="tiles" id="templates-list"></ul>
+          </div>
+        </div>
+
+        <div class="lib-panel" id="lib-saved" role="tabpanel" aria-labelledby="lib-tab-saved" hidden>
+          <div class="case-scroll">
+            <p class="lib-note" id="saved-note">Saved in this browser only. Opening one replaces the editor contents.</p>
+            <ul class="tiles" id="saved-list"></ul>
+            <p class="lib-empty" id="saved-empty">Nothing saved yet. Press <strong>Save</strong> above the editor to keep the current equation here.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Export inspector -->
+      <aside class="inspector" aria-labelledby="export-h">
+        <div class="bar"><h2 id="export-h">Export</h2></div>
+        <div class="inspector-body">
+          <form class="settings" id="settings" autocomplete="off" onsubmit="return false">
+            <fieldset class="group">
+              <legend>Typesetting</legend>
+              <div class="field">
+                <span class="label" id="style-label">Math style</span>
+                <div class="seg seg-full" role="group" aria-labelledby="style-label">
+                  <button type="button" class="seg-btn" data-display="true" aria-pressed="true" title="Large operators, limits above and below">Display</button>
+                  <button type="button" class="seg-btn" data-display="false" aria-pressed="false" title="Compact, as inside a sentence">Inline</button>
+                </div>
+              </div>
+              <div class="pair">
+                <label class="field">
+                  <span class="label">Font size</span>
+                  <span class="with-unit">
+                    <input class="input" type="number" id="fontPt" min="1" max="1000" step="0.5" inputmode="decimal" list="pt-presets" required>
+                    <span class="unit">pt</span>
+                  </span>
+                </label>
+                <label class="field">
+                  <span class="label">Scale</span>
+                  <span class="with-unit">
+                    <input class="input" type="number" id="scale" min="0.1" max="50" step="0.25" inputmode="decimal" required>
+                    <span class="unit">×</span>
+                  </span>
+                </label>
+              </div>
+              <datalist id="pt-presets">
+                <option value="8"></option><option value="9"></option><option value="10"></option><option value="10.5"></option>
+                <option value="11"></option><option value="12"></option><option value="14"></option><option value="16"></option>
+                <option value="18"></option><option value="20"></option><option value="24"></option><option value="28"></option>
+                <option value="32"></option><option value="36"></option><option value="48"></option><option value="60"></option><option value="72"></option>
+              </datalist>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend>Appearance</legend>
+              <label class="field">
+                <span class="label">Equation color</span>
+                <span class="color-field">
+                  <input type="color" id="color" aria-label="Equation color">
+                  <input class="input mono" type="text" id="color-hex" maxlength="7" spellcheck="false" aria-label="Equation color as a hex value">
+                </span>
+              </label>
+              <div class="field">
+                <span class="label" id="bg-label">Background</span>
+                <span class="color-field" role="group" aria-labelledby="bg-label">
+                  <span class="select"><select class="input" id="bgMode" aria-label="Background type">
+                    <option value="transparent">Transparent</option>
+                    <option value="color">Solid color</option>
+                  </select></span>
+                  <input type="color" id="bgColor" aria-label="Background color">
+                </span>
+              </div>
+              <label class="field">
+                <span class="label">Padding</span>
+                <span class="with-unit">
+                  <input class="input" type="number" id="padding" min="0" max="500" step="1" inputmode="numeric" required>
+                  <span class="unit">px</span>
+                </span>
+              </label>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend>Files</legend>
+              <div class="pair">
+                <label class="field">
+                  <span class="label">PNG resolution</span>
+                  <span class="with-unit">
+                    <input class="input" type="number" id="dpi" min="36" max="2400" step="1" inputmode="numeric" list="dpi-presets" required>
+                    <span class="unit">dpi</span>
+                  </span>
+                </label>
+                <label class="field">
+                  <span class="label">SVG size in</span>
+                  <span class="select"><select class="input" id="unit">
+                    <option value="pt">Points</option>
+                    <option value="px">Pixels</option>
+                  </select></span>
+                </label>
+              </div>
+              <datalist id="dpi-presets">
+                <option value="72"></option><option value="96"></option><option value="150"></option>
+                <option value="300"></option><option value="600"></option><option value="1200"></option>
+              </datalist>
+              <label class="field">
+                <span class="label">File name</span>
+                <input class="input mono" type="text" id="filename" spellcheck="false" maxlength="120">
+              </label>
+            </fieldset>
+          </form>
+
+          <div class="output">
+            <dl class="readout">
+              <div><dt>Size</dt><dd id="ro-size">–</dd></div>
+              <div><dt>PNG</dt><dd id="ro-png">–</dd></div>
+            </dl>
+            <div class="actions">
+              <button type="button" class="btn primary" id="dl-svg">Download SVG</button>
+              <button type="button" class="btn primary" id="dl-png">Download PNG</button>
+              <button type="button" class="btn" id="copy-svg" data-copy-label="Copy SVG code">Copy SVG code</button>
+              <button type="button" class="btn" id="copy-png" data-copy-label="Copy PNG image">Copy PNG image</button>
+              <button type="button" class="btn wide" id="copy-mathml" data-copy-label="Copy MathML for Word" title="Pastes into Microsoft Word as an editable equation">Copy MathML for Word</button>
+            </div>
+            <p class="note" id="export-note" aria-live="polite"></p>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
 
   <dialog id="help-dialog" class="dialog" aria-labelledby="help-h">
     <div class="dialog-head">
       <h2 id="help-h">Keyboard shortcuts</h2>
-      <button type="button" class="btn ghost icon" data-close aria-label="Close">✕</button>
+      <button type="button" class="btn quiet icon" data-close aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
     </div>
     <table class="keys">
       <tbody>
-        <tr><td><kbd>\</kbd> + letters</td><td>Suggest commands</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd> or <kbd>Alt</kbd>+<kbd>Space</kbd></td><td>Show suggestions</td></tr>
-        <tr><td><kbd>↑</kbd> <kbd>↓</kbd> then <kbd>Enter</kbd> or <kbd>Tab</kbd></td><td>Choose a suggestion</td></tr>
-        <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Next / previous field in an inserted structure</td></tr>
-        <tr><td><kbd>Esc</kbd> then <kbd>Tab</kbd></td><td>Move focus out of the editor</td></tr>
-        <tr><td><kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>S</kbd></td><td>Download SVG</td></tr>
-        <tr><td><kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Download PNG</td></tr>
-        <tr><td><kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd></td><td>Undo</td></tr>
+        <tr><th scope="row"><kbd>\</kbd> and letters</th><td>Suggest commands</td></tr>
+        <tr><th scope="row"><kbd>Ctrl</kbd>+<kbd>Space</kbd> or <kbd>Alt</kbd>+<kbd>Space</kbd></th><td>Show all suggestions</td></tr>
+        <tr><th scope="row"><kbd>↑</kbd> <kbd>↓</kbd>, then <kbd>Enter</kbd> or <kbd>Tab</kbd></th><td>Choose a suggestion</td></tr>
+        <tr><th scope="row"><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></th><td>Next / previous slot in an inserted structure</td></tr>
+        <tr><th scope="row"><kbd>Esc</kbd>, then <kbd>Tab</kbd></th><td>Move focus out of the editor</td></tr>
+        <tr><th scope="row"><kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>S</kbd></th><td>Download SVG</td></tr>
+        <tr><th scope="row"><kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></th><td>Download PNG</td></tr>
+        <tr><th scope="row"><kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd></th><td>Undo</td></tr>
       </tbody>
     </table>
-    <p class="dialog-note">Select text and click a structure such as <code>\frac{}{}</code> or <code>\sqrt{}</code> to wrap the selection in it.</p>
+    <p class="dialog-note">Select part of your LaTeX, then click a structure such as <code>\frac{}{}</code> or <code>\sqrt{}</code>, to wrap the selection in it.</p>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <p class="vh" id="announce" aria-live="polite"></p>
   <noscript><p class="noscript">eqset needs JavaScript to typeset equations.</p></noscript>
 
   <script src="vendor/codemirror/codemirror.js"></script>
